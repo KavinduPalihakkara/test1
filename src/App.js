@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import Tesseract from "tesseract.js"; // Ensure you have tesseract.js installed
+import Tesseract from "tesseract.js";
 
 const Main = () => {
   const videoRef = useRef(null);
@@ -9,26 +9,24 @@ const Main = () => {
   const [tireSize, setTireSize] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cameraOpened, setCameraOpened] = useState(false);
 
   const openCamera = async () => {
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       videoRef.current.srcObject = newStream;
       setStream(newStream);
+      setCameraOpened(true);
     } catch (err) {
       console.error("Error accessing the camera: ", err);
     }
   };
 
-  const closeCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setStream(null);
-      setCapturedImage(null);
-      setTireSize("");
-      setError("");
-    }
+  const closePicture = () => {
+    setCapturedImage(null);
+    setTireSize("");
+    setError("");
+    openCamera(); // Reopen camera when closing the picture
   };
 
   const captureImage = async () => {
@@ -39,7 +37,7 @@ const Main = () => {
     context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const imageData = canvas.toDataURL("image/png");
     setCapturedImage(imageData);
-    await extractTextFromImage(imageData); // Call the text extraction function
+    await extractTextFromImage(imageData);
   };
 
   const extractTextFromImage = async (imageBase64) => {
@@ -67,23 +65,17 @@ const Main = () => {
 
   return (
     <div style={styles.container}>
-      <button style={styles.button} onClick={openCamera}>
-        Open Camera
-      </button>
-      {stream && (
-        <>
-          <button style={styles.button} onClick={closeCamera}>
-            Close Camera
-          </button>
-          <button style={styles.button} onClick={captureImage}>
-            Capture Image
-          </button>
-        </>
+      {!cameraOpened && <button style={styles.button} onClick={openCamera}>Open Camera</button>}
+      {stream && !capturedImage && (
+        <button style={styles.button} onClick={captureImage}>Capture Image</button>
       )}
-      <video ref={videoRef} autoPlay style={styles.video}></video>
+      {!capturedImage && <video ref={videoRef} autoPlay style={styles.video}></video>}
       <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
       {capturedImage && (
-        <img src={capturedImage} alt="Captured" style={styles.capturedImage} />
+        <>
+          <img src={capturedImage} alt="Captured" style={styles.capturedImage} />
+          <button style={styles.button} onClick={closePicture}>Close Picture</button>
+        </>
       )}
       {loading && <p>Processing image...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
@@ -102,6 +94,8 @@ const styles = {
     width: "100vw",
     backgroundColor: "#f5f5f5",
     fontFamily: "Arial, sans-serif",
+    overflowY: "auto",
+    padding: "20px",
   },
   button: {
     padding: "10px 15px",
